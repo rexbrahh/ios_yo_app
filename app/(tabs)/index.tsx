@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/Colors';
@@ -7,14 +7,10 @@ import { Card } from '@/components/ui/Card';
 import { supabase } from '@/lib/supabase';
 import { Users, Heart, MessageCircle, MoreHorizontal, Filter } from 'lucide-react-native';
 
-export default function FeedScreen() {
+const FeedScreen = React.memo(() => {
   const [user, setUser] = useState<any>(null);
 
-  useEffect(() => {
-    fetchUser();
-  }, []);
-
-  const fetchUser = async () => {
+  const fetchUser = useCallback(async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
@@ -23,10 +19,13 @@ export default function FeedScreen() {
     } catch (error) {
       console.error('Error fetching user:', error);
     }
-  };
+  }, []);
 
-  // Mock data for demonstration
-  const profiles = [
+  useEffect(() => {
+    fetchUser();
+  }, [fetchUser]);
+
+  const profiles = useMemo(() => [
     {
       id: 1,
       name: 'Alex Chen',
@@ -54,7 +53,7 @@ export default function FeedScreen() {
       bio: 'Startup enthusiast looking for co-founders and friends. Let\'s grab coffee and talk about changing the world!',
       distance: '0.8 miles away',
     },
-  ];
+  ], []);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -122,7 +121,9 @@ export default function FeedScreen() {
       </ScrollView>
     </SafeAreaView>
   );
-}
+});
+
+export default FeedScreen;
 
 const styles = StyleSheet.create({
   container: {
