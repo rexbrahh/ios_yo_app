@@ -7,35 +7,29 @@ import { Layout } from '@/constants/Layout';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { supabase } from '@/lib/supabase';
-import { Check, Crown, Sparkles } from 'lucide-react-native';
+import { Check, Users, Sparkles, Heart } from 'lucide-react-native';
 
 export default function SuccessScreen() {
   const [loading, setLoading] = useState(true);
-  const [subscription, setSubscription] = useState<any>(null);
+  const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
-    // Wait a moment for webhook to process, then fetch subscription
+    // Wait a moment for any background processes, then fetch user
     const timer = setTimeout(() => {
-      fetchSubscription();
-    }, 2000);
+      fetchUser();
+    }, 1500);
 
     return () => clearTimeout(timer);
   }, []);
 
-  const fetchSubscription = async () => {
+  const fetchUser = async () => {
     try {
-      const { data, error } = await supabase
-        .from('stripe_user_subscriptions')
-        .select('*')
-        .maybeSingle();
-
-      if (error) {
-        console.error('Error fetching subscription:', error);
-      } else {
-        setSubscription(data);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        setUser(session.user);
       }
     } catch (error) {
-      console.error('Error fetching subscription:', error);
+      console.error('Error fetching user:', error);
     } finally {
       setLoading(false);
     }
@@ -50,7 +44,7 @@ export default function SuccessScreen() {
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={Colors.primary} />
-          <Text style={styles.loadingText}>Processing your purchase...</Text>
+          <Text style={styles.loadingText}>Setting up your profile...</Text>
         </View>
       </SafeAreaView>
     );
@@ -65,65 +59,57 @@ export default function SuccessScreen() {
           </View>
           <Sparkles size={24} color={Colors.primary} style={styles.sparkle1} />
           <Sparkles size={16} color={Colors.secondary} style={styles.sparkle2} />
-          <Sparkles size={20} color={Colors.accent} style={styles.sparkle3} />
+          <Sparkles size={20} color={Colors.primary} style={styles.sparkle3} />
         </View>
 
-        <Text style={styles.title}>Welcome to Premium!</Text>
+        <Text style={styles.title}>Welcome to YoApp!</Text>
         <Text style={styles.subtitle}>
-          Your payment was successful and your premium features are now active.
+          You're all set! Your profile is ready and you can start connecting with fellow freshmen.
         </Text>
 
         <Card style={styles.statusCard}>
           <View style={styles.statusHeader}>
-            <Crown size={24} color={Colors.primary} />
-            <Text style={styles.statusTitle}>Premium Active</Text>
+            <Users size={24} color={Colors.primary} />
+            <Text style={styles.statusTitle}>Profile Complete</Text>
           </View>
           
-          {subscription && (
-            <View style={styles.subscriptionDetails}>
-              <Text style={styles.subscriptionText}>
-                Status: <Text style={styles.activeText}>Active</Text>
-              </Text>
-              {subscription.current_period_end && (
-                <Text style={styles.subscriptionText}>
-                  Next billing: {new Date(subscription.current_period_end * 1000).toLocaleDateString()}
-                </Text>
-              )}
-            </View>
-          )}
+          <Text style={styles.statusSubtext}>
+            Your freshman journey begins now! Start discovering people who share your interests.
+          </Text>
         </Card>
 
         <Card style={styles.featuresCard}>
-          <Text style={styles.featuresTitle}>You now have access to:</Text>
+          <Text style={styles.featuresTitle}>What's next:</Text>
           
           <View style={styles.featuresList}>
             <View style={styles.feature}>
-              <Check size={16} color={Colors.accent} />
-              <Text style={styles.featureText}>Unlimited connections</Text>
+              <Check size={16} color={Colors.primary} />
+              <Text style={styles.featureText}>Browse fellow freshmen profiles</Text>
             </View>
             <View style={styles.feature}>
-              <Check size={16} color={Colors.accent} />
-              <Text style={styles.featureText}>Advanced matching algorithm</Text>
+              <Check size={16} color={Colors.primary} />
+              <Text style={styles.featureText}>Find study partners and friends</Text>
             </View>
             <View style={styles.feature}>
-              <Check size={16} color={Colors.accent} />
-              <Text style={styles.featureText}>Priority support</Text>
+              <Check size={16} color={Colors.primary} />
+              <Text style={styles.featureText}>Join campus gatherings</Text>
             </View>
             <View style={styles.feature}>
-              <Check size={16} color={Colors.accent} />
-              <Text style={styles.featureText}>Exclusive campus events</Text>
+              <Check size={16} color={Colors.primary} />
+              <Text style={styles.featureText}>Start meaningful conversations</Text>
             </View>
           </View>
         </Card>
 
         <Button
-          title="Continue to App"
+          title="Start Exploring"
           onPress={handleContinue}
           style={styles.continueButton}
         />
 
         <Text style={styles.footerText}>
-          Thank you for supporting UniConnect! If you have any questions, our premium support team is here to help.
+          Ready to make your freshman year amazing? No more awkward ice breakers - 
+          just authentic connections with people who get you!
         </Text>
       </View>
     </SafeAreaView>
@@ -160,10 +146,10 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: Colors.accent,
+    backgroundColor: Colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: Colors.black,
+    shadowColor: Colors.dark,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 12,
@@ -215,18 +201,11 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-SemiBold',
     color: Colors.text,
   },
-  subscriptionDetails: {
-    alignItems: 'center',
-    gap: Layout.spacing.xs,
-  },
-  subscriptionText: {
+  statusSubtext: {
     fontSize: Layout.fontSize.sm,
     fontFamily: 'Inter-Regular',
     color: Colors.textSecondary,
-  },
-  activeText: {
-    color: Colors.accent,
-    fontFamily: 'Inter-SemiBold',
+    textAlign: 'center',
   },
   featuresCard: {
     width: '100%',
