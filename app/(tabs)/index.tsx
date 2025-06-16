@@ -1,229 +1,125 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
-import { stripeProducts } from '@/src/stripe-config';
-import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { supabase } from '@/lib/supabase';
-import { Toast } from '@/components/ui/Toast';
-import { CreditCard, Check, Crown, Star } from 'lucide-react-native';
+import { Users, Heart, MessageCircle, MoreHorizontal, Filter } from 'lucide-react-native';
 
-export default function HomeScreen() {
-  const [loading, setLoading] = useState(false);
-  const [subscription, setSubscription] = useState<any>(null);
-  const [subscriptionLoading, setSubscriptionLoading] = useState(true);
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+export default function FeedScreen() {
+  const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
-    fetchSubscription();
+    fetchUser();
   }, []);
 
-  const fetchSubscription = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('stripe_user_subscriptions')
-        .select('*')
-        .maybeSingle();
-
-      if (error) {
-        console.error('Error fetching subscription:', error);
-      } else {
-        setSubscription(data);
-      }
-    } catch (error) {
-      console.error('Error fetching subscription:', error);
-    } finally {
-      setSubscriptionLoading(false);
-    }
-  };
-
-  const handlePurchase = async (priceId: string, mode: 'payment' | 'subscription') => {
-    setLoading(true);
-    
+  const fetchUser = async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session) {
-        setToast({ message: 'Please log in to continue', type: 'error' });
-        return;
+      if (session) {
+        setUser(session.user);
       }
-
-      const response = await fetch(`${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/stripe-checkout`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          price_id: priceId,
-          success_url: `${window.location.origin}/success`,
-          cancel_url: `${window.location.origin}/`,
-          mode,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to create checkout session');
-      }
-
-      if (data.url) {
-        window.location.href = data.url;
-      }
-    } catch (error: any) {
-      setToast({ message: error.message || 'Failed to start checkout', type: 'error' });
-    } finally {
-      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching user:', error);
     }
   };
 
-  const getSubscriptionStatus = () => {
-    if (!subscription) return null;
-    
-    const status = subscription.subscription_status;
-    if (status === 'active') {
-      return { text: 'Active Premium', color: Colors.accent, icon: Check };
-    } else if (status === 'trialing') {
-      return { text: 'Trial Active', color: Colors.warning, icon: Star };
-    } else if (status === 'past_due') {
-      return { text: 'Payment Due', color: Colors.error, icon: CreditCard };
-    } else if (status === 'canceled') {
-      return { text: 'Canceled', color: Colors.textSecondary, icon: null };
-    }
-    return null;
-  };
-
-  const subscriptionStatus = getSubscriptionStatus();
+  // Mock data for demonstration
+  const profiles = [
+    {
+      id: 1,
+      name: 'Alex Chen',
+      program: 'Computer Science',
+      year: 'Freshman',
+      interests: ['Gaming', 'Programming', 'Coffee'],
+      bio: 'Looking for study partners and maybe something more! Love late-night coding sessions and exploring campus.',
+      distance: '0.2 miles away',
+    },
+    {
+      id: 2,
+      name: 'Maya Rodriguez',
+      program: 'Psychology',
+      year: 'Freshman',
+      interests: ['Psychology', 'Art', 'Yoga'],
+      bio: 'New to campus and excited to meet people! Always down for deep conversations and campus adventures.',
+      distance: '0.5 miles away',
+    },
+    {
+      id: 3,
+      name: 'Jordan Kim',
+      program: 'Business',
+      year: 'Freshman',
+      interests: ['Entrepreneurship', 'Basketball', 'Music'],
+      bio: 'Startup enthusiast looking for co-founders and friends. Let\'s grab coffee and talk about changing the world!',
+      distance: '0.8 miles away',
+    },
+  ];
 
   return (
     <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <View style={styles.headerContent}>
+          <Text style={styles.title}>Discover</Text>
+          <TouchableOpacity style={styles.filterButton}>
+            <Filter size={24} color={Colors.primary} />
+          </TouchableOpacity>
+        </View>
+        <Text style={styles.subtitle}>
+          Fellow freshmen near you
+        </Text>
+      </View>
+
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Welcome to UniConnect</Text>
-          <Text style={styles.subtitle}>Connect with fellow students and unlock premium features</Text>
-        </View>
-
-        {/* Subscription Status */}
-        {subscriptionLoading ? (
-          <Card style={styles.statusCard}>
-            <ActivityIndicator size="small" color={Colors.primary} />
-            <Text style={styles.statusText}>Loading subscription status...</Text>
-          </Card>
-        ) : subscriptionStatus ? (
-          <Card style={styles.statusCard}>
-            <View style={styles.statusHeader}>
-              {subscriptionStatus.icon && (
-                <subscriptionStatus.icon size={20} color={subscriptionStatus.color} />
-              )}
-              <Text style={[styles.statusText, { color: subscriptionStatus.color }]}>
-                {subscriptionStatus.text}
-              </Text>
+        {profiles.map((profile) => (
+          <Card key={profile.id} style={styles.profileCard}>
+            <View style={styles.profileHeader}>
+              <View style={styles.profileInfo}>
+                <Text style={styles.profileName}>{profile.name}</Text>
+                <Text style={styles.profileProgram}>{profile.program} • {profile.year}</Text>
+                <Text style={styles.profileDistance}>{profile.distance}</Text>
+              </View>
+              <TouchableOpacity style={styles.moreButton}>
+                <MoreHorizontal size={20} color={Colors.textSecondary} />
+              </TouchableOpacity>
             </View>
-            {subscription.subscription_status === 'active' && (
-              <Text style={styles.statusSubtext}>
-                Your premium subscription is active and ready to use!
-              </Text>
-            )}
+
+            <Text style={styles.profileBio}>{profile.bio}</Text>
+
+            <View style={styles.interestsContainer}>
+              {profile.interests.map((interest, index) => (
+                <View key={index} style={styles.interestTag}>
+                  <Text style={styles.interestText}>{interest}</Text>
+                </View>
+              ))}
+            </View>
+
+            <View style={styles.actionButtons}>
+              <TouchableOpacity style={styles.passButton}>
+                <Text style={styles.passButtonText}>Pass</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.connectButton}>
+                <Heart size={16} color={Colors.white} />
+                <Text style={styles.connectButtonText}>Connect</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.messageButton}>
+                <MessageCircle size={16} color={Colors.primary} />
+                <Text style={styles.messageButtonText}>Message</Text>
+              </TouchableOpacity>
+            </View>
           </Card>
-        ) : null}
+        ))}
 
-        {/* Products */}
-        <View style={styles.productsSection}>
-          <Text style={styles.sectionTitle}>Available Plans</Text>
-          
-          {stripeProducts.map((product) => (
-            <Card key={product.id} style={styles.productCard}>
-              <View style={styles.productHeader}>
-                <Crown size={24} color={Colors.primary} />
-                <View style={styles.productInfo}>
-                  <Text style={styles.productName}>{product.name}</Text>
-                  <Text style={styles.productDescription}>{product.description}</Text>
-                </View>
-                <View style={styles.priceContainer}>
-                  <Text style={styles.price}>
-                    ${(product.price! / 100).toFixed(2)}
-                  </Text>
-                  <Text style={styles.priceInterval}>
-                    {product.mode === 'subscription' ? '/month' : 'one-time'}
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.features}>
-                <View style={styles.feature}>
-                  <Check size={16} color={Colors.accent} />
-                  <Text style={styles.featureText}>Unlimited connections</Text>
-                </View>
-                <View style={styles.feature}>
-                  <Check size={16} color={Colors.accent} />
-                  <Text style={styles.featureText}>Advanced matching algorithm</Text>
-                </View>
-                <View style={styles.feature}>
-                  <Check size={16} color={Colors.accent} />
-                  <Text style={styles.featureText}>Priority support</Text>
-                </View>
-                <View style={styles.feature}>
-                  <Check size={16} color={Colors.accent} />
-                  <Text style={styles.featureText}>Exclusive campus events</Text>
-                </View>
-              </View>
-
-              <Button
-                title={loading ? 'Processing...' : `Get ${product.name}`}
-                onPress={() => handlePurchase(product.priceId, product.mode)}
-                disabled={loading || (subscription?.subscription_status === 'active')}
-                style={[
-                  styles.purchaseButton,
-                  subscription?.subscription_status === 'active' && styles.disabledButton
-                ]}
-              />
-              
-              {subscription?.subscription_status === 'active' && (
-                <Text style={styles.alreadySubscribed}>
-                  You already have an active subscription
-                </Text>
-              )}
-            </Card>
-          ))}
-        </View>
-
-        {/* Features Overview */}
-        <View style={styles.featuresSection}>
-          <Text style={styles.sectionTitle}>Why Go Premium?</Text>
-          
-          <Card style={styles.featureCard}>
-            <Text style={styles.featureCardTitle}>Enhanced Matching</Text>
-            <Text style={styles.featureCardDescription}>
-              Get matched with students who share your interests, study habits, and campus activities.
-            </Text>
-          </Card>
-
-          <Card style={styles.featureCard}>
-            <Text style={styles.featureCardTitle}>Exclusive Events</Text>
-            <Text style={styles.featureCardDescription}>
-              Access to premium campus events, study groups, and networking opportunities.
-            </Text>
-          </Card>
-
-          <Card style={styles.featureCard}>
-            <Text style={styles.featureCardTitle}>Priority Support</Text>
-            <Text style={styles.featureCardDescription}>
-              Get help when you need it with our dedicated premium support team.
-            </Text>
-          </Card>
+        <View style={styles.endMessage}>
+          <Users size={32} color={Colors.textSecondary} />
+          <Text style={styles.endMessageText}>
+            You've seen all the new profiles for now!
+          </Text>
+          <Text style={styles.endMessageSubtext}>
+            Check back later for more freshmen to connect with.
+          </Text>
         </View>
       </ScrollView>
-
-      {toast && (
-        <Toast
-          message={toast.message}
-          type={toast.type}
-          onDismiss={() => setToast(null)}
-        />
-      )}
     </SafeAreaView>
   );
 }
@@ -233,138 +129,154 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background,
   },
-  content: {
-    flex: 1,
-  },
   header: {
     padding: Layout.spacing.lg,
+    backgroundColor: Colors.background,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.light,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: Layout.spacing.xs,
   },
   title: {
     fontSize: Layout.fontSize.xxl,
     fontFamily: 'Poppins-Bold',
     color: Colors.text,
-    textAlign: 'center',
-    marginBottom: Layout.spacing.sm,
+  },
+  filterButton: {
+    padding: Layout.spacing.xs,
   },
   subtitle: {
     fontSize: Layout.fontSize.md,
     fontFamily: 'Inter-Regular',
     color: Colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 22,
   },
-  statusCard: {
-    marginHorizontal: Layout.spacing.lg,
-    marginBottom: Layout.spacing.lg,
-    alignItems: 'center',
-  },
-  statusHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Layout.spacing.sm,
-    marginBottom: Layout.spacing.xs,
-  },
-  statusText: {
-    fontSize: Layout.fontSize.md,
-    fontFamily: 'Inter-SemiBold',
-    color: Colors.text,
-  },
-  statusSubtext: {
-    fontSize: Layout.fontSize.sm,
-    fontFamily: 'Inter-Regular',
-    color: Colors.textSecondary,
-    textAlign: 'center',
-  },
-  productsSection: {
-    paddingHorizontal: Layout.spacing.lg,
-    marginBottom: Layout.spacing.xl,
-  },
-  sectionTitle: {
-    fontSize: Layout.fontSize.lg,
-    fontFamily: 'Inter-SemiBold',
-    color: Colors.text,
-    marginBottom: Layout.spacing.lg,
-  },
-  productCard: {
-    marginBottom: Layout.spacing.lg,
-  },
-  productHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: Layout.spacing.lg,
-  },
-  productInfo: {
+  content: {
     flex: 1,
-    marginLeft: Layout.spacing.md,
+    padding: Layout.spacing.lg,
   },
-  productName: {
-    fontSize: Layout.fontSize.lg,
-    fontFamily: 'Inter-SemiBold',
-    color: Colors.text,
-    marginBottom: Layout.spacing.xs,
-  },
-  productDescription: {
-    fontSize: Layout.fontSize.sm,
-    fontFamily: 'Inter-Regular',
-    color: Colors.textSecondary,
-  },
-  priceContainer: {
-    alignItems: 'flex-end',
-  },
-  price: {
-    fontSize: Layout.fontSize.xl,
-    fontFamily: 'Poppins-Bold',
-    color: Colors.primary,
-  },
-  priceInterval: {
-    fontSize: Layout.fontSize.sm,
-    fontFamily: 'Inter-Regular',
-    color: Colors.textSecondary,
-  },
-  features: {
+  profileCard: {
     marginBottom: Layout.spacing.lg,
-    gap: Layout.spacing.sm,
   },
-  feature: {
+  profileHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: Layout.spacing.sm,
-  },
-  featureText: {
-    fontSize: Layout.fontSize.sm,
-    fontFamily: 'Inter-Regular',
-    color: Colors.text,
-  },
-  purchaseButton: {
-    marginBottom: Layout.spacing.sm,
-  },
-  disabledButton: {
-    opacity: 0.5,
-  },
-  alreadySubscribed: {
-    fontSize: Layout.fontSize.sm,
-    fontFamily: 'Inter-Regular',
-    color: Colors.textSecondary,
-    textAlign: 'center',
-  },
-  featuresSection: {
-    paddingHorizontal: Layout.spacing.lg,
-    paddingBottom: Layout.spacing.xl,
-  },
-  featureCard: {
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
     marginBottom: Layout.spacing.md,
   },
-  featureCardTitle: {
-    fontSize: Layout.fontSize.md,
+  profileInfo: {
+    flex: 1,
+  },
+  profileName: {
+    fontSize: Layout.fontSize.lg,
     fontFamily: 'Inter-SemiBold',
     color: Colors.text,
     marginBottom: Layout.spacing.xs,
   },
-  featureCardDescription: {
+  profileProgram: {
     fontSize: Layout.fontSize.sm,
     fontFamily: 'Inter-Regular',
     color: Colors.textSecondary,
+    marginBottom: Layout.spacing.xs,
+  },
+  profileDistance: {
+    fontSize: Layout.fontSize.sm,
+    fontFamily: 'Inter-Regular',
+    color: Colors.primary,
+  },
+  moreButton: {
+    padding: Layout.spacing.xs,
+  },
+  profileBio: {
+    fontSize: Layout.fontSize.sm,
+    fontFamily: 'Inter-Regular',
+    color: Colors.text,
     lineHeight: 20,
+    marginBottom: Layout.spacing.md,
+  },
+  interestsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Layout.spacing.xs,
+    marginBottom: Layout.spacing.lg,
+  },
+  interestTag: {
+    backgroundColor: Colors.light,
+    paddingHorizontal: Layout.spacing.sm,
+    paddingVertical: Layout.spacing.xs,
+    borderRadius: Layout.borderRadius.full,
+  },
+  interestText: {
+    fontSize: Layout.fontSize.sm,
+    fontFamily: 'Inter-Medium',
+    color: Colors.primary,
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    gap: Layout.spacing.sm,
+  },
+  passButton: {
+    flex: 1,
+    paddingVertical: Layout.spacing.sm,
+    backgroundColor: Colors.light,
+    borderRadius: Layout.borderRadius.medium,
+    alignItems: 'center',
+  },
+  passButtonText: {
+    fontSize: Layout.fontSize.sm,
+    fontFamily: 'Inter-SemiBold',
+    color: Colors.textSecondary,
+  },
+  connectButton: {
+    flex: 1,
+    paddingVertical: Layout.spacing.sm,
+    backgroundColor: Colors.primary,
+    borderRadius: Layout.borderRadius.medium,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: Layout.spacing.xs,
+  },
+  connectButtonText: {
+    fontSize: Layout.fontSize.sm,
+    fontFamily: 'Inter-SemiBold',
+    color: Colors.white,
+  },
+  messageButton: {
+    flex: 1,
+    paddingVertical: Layout.spacing.sm,
+    backgroundColor: Colors.background,
+    borderRadius: Layout.borderRadius.medium,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: Layout.spacing.xs,
+  },
+  messageButtonText: {
+    fontSize: Layout.fontSize.sm,
+    fontFamily: 'Inter-SemiBold',
+    color: Colors.primary,
+  },
+  endMessage: {
+    alignItems: 'center',
+    paddingVertical: Layout.spacing.xl,
+    gap: Layout.spacing.md,
+  },
+  endMessageText: {
+    fontSize: Layout.fontSize.md,
+    fontFamily: 'Inter-SemiBold',
+    color: Colors.textSecondary,
+    textAlign: 'center',
+  },
+  endMessageSubtext: {
+    fontSize: Layout.fontSize.sm,
+    fontFamily: 'Inter-Regular',
+    color: Colors.textSecondary,
+    textAlign: 'center',
   },
 });
