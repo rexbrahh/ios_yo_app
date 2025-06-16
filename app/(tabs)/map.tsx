@@ -17,8 +17,11 @@ import {
   Navigation,
   Eye,
   EyeOff,
-  Settings
+  Settings,
+  ZoomIn,
+  ZoomOut
 } from 'lucide-react-native';
+import MapView, { Marker, Circle } from 'react-native-maps';
 
 const { width, height } = Dimensions.get('window');
 
@@ -52,6 +55,7 @@ export default function MapScreen() {
   const [isLocationVisible, setIsLocationVisible] = useState(true);
   const [selectedGathering, setSelectedGathering] = useState<Gathering | null>(null);
   const [isLocatingUser, setIsLocatingUser] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(false);
   const [mapRegion, setMapRegion] = useState({
     latitude: 37.7749, // Default to San Francisco area (replace with your campus coordinates)
     longitude: -122.4194,
@@ -60,6 +64,7 @@ export default function MapScreen() {
   });
 
   const bottomSheetAnim = useRef(new Animated.Value(-200)).current;
+  const mapRef = useRef<MapView | null>(null);
 
   // Mock data for friends and gatherings (in a real app, this would come from your backend)
   const friends: Friend[] = [
@@ -117,7 +122,38 @@ export default function MapScreen() {
   ];
 
   useEffect(() => {
-    getCurrentLocation();
+    // Initial location fetch and animation
+    const initializeMap = async () => {
+      const initialLocation = await getCurrentLocation();
+      
+      // If we got a location, do the initial fly-in animation
+      if (initialLocation && mapRef.current) {
+        // Start from a zoomed out view
+        mapRef.current.setCamera({
+          center: {
+            latitude: initialLocation.coords.latitude,
+            longitude: initialLocation.coords.longitude,
+          },
+          zoom: 5, // Very zoomed out
+          heading: 0,
+          pitch: 0,
+        });
+        
+        // After a brief moment, fly in to the user's location
+        setTimeout(() => {
+          if (mapRef.current) {
+            mapRef.current.animateToRegion({
+              latitude: initialLocation.coords.latitude,
+              longitude: initialLocation.coords.longitude,
+              latitudeDelta: 0.01,
+              longitudeDelta: 0.01,
+            }, 2000); // 2 second smooth animation
+          }
+        }, 500);
+      }
+    };
+    
+    initializeMap();
     
     // Set up periodic location updates every 30 seconds
     const locationInterval = setInterval(() => {
@@ -244,16 +280,72 @@ export default function MapScreen() {
   };
 
   const centerOnUser = async () => {
-    // If we already have a location, just center on it
-    if (location) {
-      Alert.alert('Location Found', `Centered on: ${location.coords.latitude.toFixed(4)}, ${location.coords.longitude.toFixed(4)}`);
+    // Always try to refresh location when the user explicitly taps the button
+    const freshLocation = await getCurrentLocation(true);
+
+    // Fallback to previously cached location only if fresh lookup failed
+    const coordsToCenter = freshLocation?.coords ?? location?.coords;
+    if (!coordsToCenter) {
+      Alert.alert('Location unavailable', 'Unable to determine your current position.');
       return;
     }
-    
-    // Otherwise, get fresh location with user feedback
-    const freshLocation = await getCurrentLocation(true);
-    if (freshLocation) {
-      Alert.alert('Location Found', `Centered on: ${freshLocation.coords.latitude.toFixed(4)}, ${freshLocation.coords.longitude.toFixed(4)}`);
+
+    if (mapRef.current) {
+      setIsAnimating(true);
+      
+      try {
+        // Get current camera position
+        const camera = await mapRef.current.getCamera();
+        
+        // First, zoom out to get a bird's eye view (Google Earth style)
+        await mapRef.current.animateCamera({
+          center: {
+            latitude: camera.center.latitude,
+            longitude: camera.center.longitude,
+          },
+          zoom: camera.zoom - 5, // Zoom out significantly
+          heading: 0,
+          pitch: 0,
+        }, { duration: 800 });
+
+        // Small delay for dramatic effect
+        await new Promise(resolve => setTimeout(resolve, 300));
+
+        // Then fly to the user's location with a smooth zoom in
+        await mapRef.current.animateCamera({
+          center: {
+            latitude: coordsToCenter.latitude,
+            longitude: coordsToCenter.longitude,
+          },
+          zoom: 17, // Zoom in close
+          heading: 0,
+          pitch: 45, // Add some tilt for 3D effect
+        }, { duration: 1500 });
+        
+        // Final adjustment to remove tilt
+        setTimeout(() => {
+          mapRef.current?.animateCamera({
+            center: {
+              latitude: coordsToCenter.latitude,
+              longitude: coordsToCenter.longitude,
+            },
+            zoom: 17,
+            heading: 0,
+            pitch: 0,
+          }, { duration: 500 });
+        }, 100);
+        
+      } catch (error) {
+        // Fallback to simple animation if camera methods aren't available
+        mapRef.current.animateToRegion({
+          latitude: coordsToCenter.latitude,
+          longitude: coordsToCenter.longitude,
+          latitudeDelta: 0.005,
+          longitudeDelta: 0.005,
+        }, 1500);
+      } finally {
+        setIsAnimating(false);
+      }
     }
   };
 
@@ -274,6 +366,26 @@ export default function MapScreen() {
 
   const handleProfilePress = () => {
     router.push('/profile');
+  };
+
+  const handleZoomIn = async () => {
+    if (mapRef.current) {
+      const camera = await mapRef.current.getCamera();
+      mapRef.current.animateCamera({
+        ...camera,
+        zoom: camera.zoom + 1,
+      }, { duration: 300 });
+    }
+  };
+
+  const handleZoomOut = async () => {
+    if (mapRef.current) {
+      const camera = await mapRef.current.getCamera();
+      mapRef.current.animateCamera({
+        ...camera,
+        zoom: Math.max(camera.zoom - 1, 1), // Prevent zooming out too far
+      }, { duration: 300 });
+    }
   };
 
   const renderFriendMarker = (friend: Friend) => (
@@ -333,33 +445,59 @@ export default function MapScreen() {
   return (
     <SafeAreaView style={styles.container}>
       {/* Map Placeholder */}
-      <View style={styles.mapPlaceholder}>
-        <Text style={styles.mapPlaceholderText}>🗺️ Campus Map</Text>
-        <Text style={styles.mapPlaceholderSubtext}>
-          {location 
-            ? `Current Location: ${location.coords.latitude.toFixed(4)}, ${location.coords.longitude.toFixed(4)}`
-            : 'Getting your location...'
-          }
-        </Text>
-        
-        {/* User location indicator */}
+      <MapView
+        style={styles.map}
+        region={mapRegion}
+        showsUserLocation={isLocationVisible}
+        showsMyLocationButton={false}
+        showsCompass={false}
+        mapType="standard"
+        ref={mapRef}
+        zoomEnabled={true}
+        zoomControlEnabled={true}
+        zoomTapEnabled={true}
+        rotateEnabled={true}
+        scrollEnabled={true}
+        pitchEnabled={true}
+      >
+        {/* User privacy circle */}
         {location && isLocationVisible && (
-          <View style={[styles.userLocationMarker, {
-            position: 'absolute',
-            top: height * 0.5,
-            left: width * 0.5,
-          }]}>
-            <View style={styles.userLocationDot} />
-            <View style={styles.privacyCircle} />
-          </View>
+          <Circle
+            center={{
+              latitude: location.coords.latitude,
+              longitude: location.coords.longitude,
+            }}
+            radius={100}
+            strokeColor={Colors.primary}
+            fillColor={`${Colors.primary}20`}
+            strokeWidth={2}
+          />
         )}
 
-        {/* Friend markers */}
-        {friends.map(renderFriendMarker)}
+        {/* Friend Markers */}
+        {friends.map((friend) => (
+          <Marker key={`friend-${friend.id}`} coordinate={friend.location} onPress={() => Alert.alert(friend.name, `Last seen: ${friend.lastSeen}`)}>
+            <View style={[styles.friendAvatar, friend.isActive && styles.friendMarkerActive]}> 
+              <Text style={styles.friendAvatarText}>{friend.name[0]}</Text>
+            </View>
+          </Marker>
+        ))}
 
-        {/* Gathering markers */}
-        {gatherings.map(renderGatheringMarker)}
-      </View>
+        {/* Gathering Markers */}
+        {gatherings.map((gathering) => {
+          const IconComponent = gathering.icon;
+          return (
+            <Marker key={`gathering-${gathering.id}`} coordinate={gathering.location} onPress={() => handleGatheringPress(gathering)}>
+              <View style={[styles.gatheringMarker, { backgroundColor: getGatheringColor(gathering.type) }]}> 
+                <IconComponent size={20} color={Colors.white} />
+                <View style={styles.attendeeBadge}>
+                  <Text style={styles.attendeeCount}>{gathering.attendees}</Text>
+                </View>
+              </View>
+            </Marker>
+          );
+        })}
+      </MapView>
 
       {/* Profile Button - Upper Left */}
       <View style={styles.profileButtonContainer}>
@@ -380,12 +518,48 @@ export default function MapScreen() {
 
       {/* Floating Action Buttons */}
       <View style={styles.floatingButtons}>
+        {/* Zoom Controls */}
+        <View style={styles.zoomControls}>
+          <TouchableOpacity 
+            style={styles.zoomButton} 
+            onPress={handleZoomIn}
+          >
+            <ZoomIn size={20} color={Colors.primary} />
+          </TouchableOpacity>
+          <View style={styles.zoomDivider} />
+          <TouchableOpacity 
+            style={styles.zoomButton} 
+            onPress={handleZoomOut}
+          >
+            <ZoomOut size={20} color={Colors.primary} />
+          </TouchableOpacity>
+        </View>
+        
+        {/* Location Button */}
         <TouchableOpacity 
-          style={[styles.floatingButton, isLocatingUser && { opacity: 0.6 }]} 
+          style={[
+            styles.floatingButton, 
+            (isLocatingUser || isAnimating) && { opacity: 0.6 }
+          ]} 
           onPress={centerOnUser}
-          disabled={isLocatingUser}
+          disabled={isLocatingUser || isAnimating}
         >
-          <Navigation size={20} color={isLocatingUser ? Colors.textSecondary : Colors.primary} />
+          <Animated.View
+            style={{
+              transform: [{
+                rotate: isAnimating ? 
+                  bottomSheetAnim.interpolate({
+                    inputRange: [-200, 0],
+                    outputRange: ['0deg', '360deg'],
+                  }) : '0deg'
+              }]
+            }}
+          >
+            <Navigation 
+              size={20} 
+              color={(isLocatingUser || isAnimating) ? Colors.textSecondary : Colors.primary} 
+            />
+          </Animated.View>
         </TouchableOpacity>
       </View>
 
@@ -458,46 +632,8 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background,
   },
-  mapPlaceholder: {
+  map: {
     flex: 1,
-    backgroundColor: '#f0f8ff', // Light blue background to simulate map
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-  },
-  mapPlaceholderText: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: Colors.text,
-    marginBottom: 8,
-  },
-  mapPlaceholderSubtext: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    textAlign: 'center',
-    paddingHorizontal: 20,
-  },
-  userLocationMarker: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  userLocationDot: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: Colors.primary,
-    borderWidth: 3,
-    borderColor: Colors.white,
-    zIndex: 2,
-  },
-  privacyCircle: {
-    position: 'absolute',
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    borderWidth: 2,
-    borderColor: Colors.primary,
-    backgroundColor: `${Colors.primary}20`,
   },
   profileButtonContainer: {
     position: 'absolute',
@@ -557,6 +693,27 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 4,
     elevation: 5,
+  },
+  zoomControls: {
+    backgroundColor: Colors.white,
+    borderRadius: 25,
+    shadowColor: Colors.dark,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+    overflow: 'hidden',
+  },
+  zoomButton: {
+    width: 50,
+    height: 45,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  zoomDivider: {
+    height: 1,
+    backgroundColor: Colors.light,
+    marginHorizontal: 10,
   },
   friendMarker: {
     alignItems: 'center',
@@ -620,7 +777,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-borderColor: Colors.light,
+    borderColor: Colors.light,
   },
   attendeeCount: {
     fontSize: 12,
@@ -671,7 +828,7 @@ borderColor: Colors.light,
     width: 30,
     height: 30,
     borderRadius: 15,
-backgroundColor: Colors.light,
+    backgroundColor: Colors.light,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -687,7 +844,7 @@ backgroundColor: Colors.light,
   joinButton: {
     flex: 1,
     backgroundColor: Colors.primary,
-paddingVertical: Layout.spacing.md,
+    paddingVertical: Layout.spacing.md,
     borderRadius: Layout.borderRadius.medium,
     alignItems: 'center',
   },
@@ -699,7 +856,7 @@ paddingVertical: Layout.spacing.md,
   directionButton: {
     flex: 1,
     backgroundColor: Colors.white,
-paddingVertical: Layout.spacing.md,
+    paddingVertical: Layout.spacing.md,
     borderRadius: Layout.borderRadius.medium,
     borderWidth: 1,
     borderColor: Colors.primary,
