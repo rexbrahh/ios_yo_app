@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Alert, Animated, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Alert, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
 import { router } from 'expo-router';
@@ -17,7 +17,6 @@ import {
   Navigation,
   Eye,
   EyeOff,
-  Settings,
   ZoomIn,
   ZoomOut
 } from 'lucide-react-native';
@@ -35,6 +34,7 @@ interface Friend {
   lastSeen: string;
   isActive: boolean;
   avatar?: string;
+  isFriend?: boolean;
 }
 
 interface Gathering {
@@ -66,7 +66,7 @@ export default function MapScreen() {
   const bottomSheetAnim = useRef(new Animated.Value(-200)).current;
   const mapRef = useRef<MapView | null>(null);
 
-  // Mock data for friends and gatherings (in a real app, this would come from your backend)
+  // Mock data for friends and other users (in a real app, this would come from your backend)
   const friends: Friend[] = [
     {
       id: 1,
@@ -88,6 +88,128 @@ export default function MapScreen() {
       location: { latitude: 37.7755, longitude: -122.4190 },
       lastSeen: '3 hours ago',
       isActive: false,
+    },
+    {
+      id: 4,
+      name: 'Sam',
+      location: { latitude: 37.7748, longitude: -122.4175 },
+      lastSeen: '5 min ago',
+      isActive: true,
+    },
+    {
+      id: 5,
+      name: 'Riley',
+      location: { latitude: 37.7752, longitude: -122.4205 },
+      lastSeen: '30 min ago',
+      isActive: true,
+    },
+    {
+      id: 6,
+      name: 'Casey',
+      location: { latitude: 37.7746, longitude: -122.4185 },
+      lastSeen: '2 hours ago',
+      isActive: false,
+    },
+    {
+      id: 7,
+      name: 'Taylor',
+      location: { latitude: 37.7753, longitude: -122.4195 },
+      lastSeen: '15 min ago',
+      isActive: true,
+    },
+    {
+      id: 8,
+      name: 'Morgan',
+      location: { latitude: 37.7750, longitude: -122.4170 },
+      lastSeen: '1 hour ago',
+      isActive: true,
+    },
+    {
+      id: 9,
+      name: 'Avery',
+      location: { latitude: 37.7747, longitude: -122.4210 },
+      lastSeen: '4 hours ago',
+      isActive: false,
+    },
+    {
+      id: 10,
+      name: 'Quinn',
+      location: { latitude: 37.7754, longitude: -122.4165 },
+      lastSeen: '10 min ago',
+      isActive: true,
+    },
+  ];
+
+  const otherUsers: Friend[] = [
+    {
+      id: 11,
+      name: 'Blake',
+      location: { latitude: 37.7742, longitude: -122.4215 },
+      lastSeen: '1 hour ago',
+      isActive: true,
+    },
+    {
+      id: 12,
+      name: 'Drew',
+      location: { latitude: 37.7758, longitude: -122.4160 },
+      lastSeen: '3 hours ago',
+      isActive: false,
+    },
+    {
+      id: 13,
+      name: 'Sage',
+      location: { latitude: 37.7744, longitude: -122.4220 },
+      lastSeen: '45 min ago',
+      isActive: true,
+    },
+    {
+      id: 14,
+      name: 'River',
+      location: { latitude: 37.7756, longitude: -122.4155 },
+      lastSeen: '2 hours ago',
+      isActive: false,
+    },
+    {
+      id: 15,
+      name: 'Phoenix',
+      location: { latitude: 37.7741, longitude: -122.4225 },
+      lastSeen: '20 min ago',
+      isActive: true,
+    },
+    {
+      id: 16,
+      name: 'Rowan',
+      location: { latitude: 37.7759, longitude: -122.4150 },
+      lastSeen: '5 hours ago',
+      isActive: false,
+    },
+    {
+      id: 17,
+      name: 'Skylar',
+      location: { latitude: 37.7743, longitude: -122.4230 },
+      lastSeen: '1 hour ago',
+      isActive: true,
+    },
+    {
+      id: 18,
+      name: 'Emery',
+      location: { latitude: 37.7757, longitude: -122.4145 },
+      lastSeen: '30 min ago',
+      isActive: true,
+    },
+    {
+      id: 19,
+      name: 'Finley',
+      location: { latitude: 37.7740, longitude: -122.4235 },
+      lastSeen: '6 hours ago',
+      isActive: false,
+    },
+    {
+      id: 20,
+      name: 'Reese',
+      location: { latitude: 37.7760, longitude: -122.4140 },
+      lastSeen: '25 min ago',
+      isActive: true,
     },
   ];
 
@@ -388,50 +510,7 @@ export default function MapScreen() {
     }
   };
 
-  const renderFriendMarker = (friend: Friend) => (
-    <TouchableOpacity
-      key={`friend-${friend.id}`}
-      style={[
-        styles.friendMarker,
-        friend.isActive && styles.friendMarkerActive,
-        {
-          position: 'absolute',
-          top: height * 0.3 + (friend.id * 60), // Spread them vertically
-          left: width * 0.2 + (friend.id * 80), // Spread them horizontally
-        }
-      ]}
-      onPress={() => Alert.alert(friend.name, `Last seen: ${friend.lastSeen}`)}
-    >
-      <View style={styles.friendAvatar}>
-        <Text style={styles.friendAvatarText}>{friend.name[0]}</Text>
-      </View>
-      {friend.isActive && <View style={styles.activeIndicator} />}
-    </TouchableOpacity>
-  );
 
-  const renderGatheringMarker = (gathering: Gathering) => {
-    const IconComponent = gathering.icon;
-    return (
-      <TouchableOpacity
-        key={`gathering-${gathering.id}`}
-        style={[
-          styles.gatheringMarker,
-          { 
-            backgroundColor: getGatheringColor(gathering.type),
-            position: 'absolute',
-            top: height * 0.4 + (gathering.id * 70),
-            right: width * 0.2 + (gathering.id * 60),
-          }
-        ]}
-        onPress={() => handleGatheringPress(gathering)}
-      >
-        <IconComponent size={20} color={Colors.white} />
-        <View style={styles.attendeeBadge}>
-          <Text style={styles.attendeeCount}>{gathering.attendees}</Text>
-        </View>
-      </TouchableOpacity>
-    );
-  };
 
   const getGatheringColor = (type: string) => {
     switch (type) {
@@ -479,6 +558,17 @@ export default function MapScreen() {
           <Marker key={`friend-${friend.id}`} coordinate={friend.location} onPress={() => Alert.alert(friend.name, `Last seen: ${friend.lastSeen}`)}>
             <View style={[styles.friendAvatar, friend.isActive && styles.friendMarkerActive]}> 
               <Text style={styles.friendAvatarText}>{friend.name[0]}</Text>
+              {friend.isActive && <View style={styles.activeIndicator} />}
+            </View>
+          </Marker>
+        ))}
+
+        {/* Other User Markers */}
+        {otherUsers.map((user) => (
+          <Marker key={`user-${user.id}`} coordinate={user.location} onPress={() => Alert.alert(user.name, `Last seen: ${user.lastSeen}`)}>
+            <View style={[styles.otherUserAvatar, user.isActive && styles.otherUserMarkerActive]}> 
+              <Text style={styles.otherUserAvatarText}>{user.name[0]}</Text>
+              {user.isActive && <View style={styles.otherUserActiveIndicator} />}
             </View>
           </Marker>
         ))}
@@ -720,12 +810,14 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   friendMarkerActive: {
-    transform: [{ scale: 1.1 }],
+    transform: [{ scale: 1.15 }],
+    shadowOpacity: 0.4,
+    shadowRadius: 4,
   },
   friendAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     backgroundColor: Colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
@@ -733,9 +825,9 @@ const styles = StyleSheet.create({
     borderColor: Colors.white,
     shadowColor: Colors.dark,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
-    elevation: 4,
+    shadowOpacity: 0.35,
+    shadowRadius: 4,
+    elevation: 5,
   },
   friendAvatarText: {
     color: Colors.white,
@@ -744,14 +836,19 @@ const styles = StyleSheet.create({
   },
   activeIndicator: {
     position: 'absolute',
-    top: -2,
-    right: -2,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+    top: -3,
+    right: -3,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
     backgroundColor: '#4CAF50',
-    borderWidth: 2,
+    borderWidth: 2.5,
     borderColor: Colors.white,
+    shadowColor: '#4CAF50',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.3,
+    shadowRadius: 2,
+    elevation: 3,
   },
   gatheringMarker: {
     width: 50,
@@ -894,4 +991,38 @@ const styles = StyleSheet.create({
     fontSize: Layout.fontSize.sm,
     color: Colors.textSecondary,
   },
-}); 
+  otherUserAvatar: {
+    width: 35,
+    height: 35,
+    borderRadius: 17.5,
+    backgroundColor: Colors.textSecondary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: Colors.white,
+    shadowColor: Colors.dark,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+  otherUserMarkerActive: {
+    transform: [{ scale: 1.05 }],
+  },
+  otherUserAvatarText: {
+    color: Colors.white,
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  otherUserActiveIndicator: {
+    position: 'absolute',
+    top: -1,
+    right: -1,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#4CAF50',
+    borderWidth: 1.5,
+    borderColor: Colors.white,
+  },
+});       
