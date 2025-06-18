@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Alert, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
@@ -50,6 +50,182 @@ interface Gathering {
   icon: any;
 }
 
+const MOCK_FRIENDS: Friend[] = [
+  {
+    id: 1,
+    name: 'Alex',
+    location: { latitude: 37.7751, longitude: -122.4180 },
+    lastSeen: '2 min ago',
+    isActive: true,
+  },
+  {
+    id: 2,
+    name: 'Maya',
+    location: { latitude: 37.7745, longitude: -122.4200 },
+    lastSeen: '1 hour ago',
+    isActive: true,
+  },
+  {
+    id: 3,
+    name: 'Jordan',
+    location: { latitude: 37.7755, longitude: -122.4190 },
+    lastSeen: '3 hours ago',
+    isActive: false,
+  },
+  {
+    id: 4,
+    name: 'Sam',
+    location: { latitude: 37.7748, longitude: -122.4175 },
+    lastSeen: '5 min ago',
+    isActive: true,
+  },
+  {
+    id: 5,
+    name: 'Riley',
+    location: { latitude: 37.7752, longitude: -122.4205 },
+    lastSeen: '30 min ago',
+    isActive: true,
+  },
+  {
+    id: 6,
+    name: 'Casey',
+    location: { latitude: 37.7746, longitude: -122.4185 },
+    lastSeen: '2 hours ago',
+    isActive: false,
+  },
+  {
+    id: 7,
+    name: 'Taylor',
+    location: { latitude: 37.7753, longitude: -122.4195 },
+    lastSeen: '15 min ago',
+    isActive: true,
+  },
+  {
+    id: 8,
+    name: 'Morgan',
+    location: { latitude: 37.7750, longitude: -122.4170 },
+    lastSeen: '1 hour ago',
+    isActive: true,
+  },
+  {
+    id: 9,
+    name: 'Avery',
+    location: { latitude: 37.7747, longitude: -122.4210 },
+    lastSeen: '4 hours ago',
+    isActive: false,
+  },
+  {
+    id: 10,
+    name: 'Quinn',
+    location: { latitude: 37.7754, longitude: -122.4165 },
+    lastSeen: '10 min ago',
+    isActive: true,
+  },
+];
+
+const MOCK_OTHER_USERS: Friend[] = [
+  {
+    id: 11,
+    name: 'Blake',
+    location: { latitude: 37.7742, longitude: -122.4215 },
+    lastSeen: '1 hour ago',
+    isActive: true,
+  },
+  {
+    id: 12,
+    name: 'Drew',
+    location: { latitude: 37.7758, longitude: -122.4160 },
+    lastSeen: '3 hours ago',
+    isActive: false,
+  },
+  {
+    id: 13,
+    name: 'Sage',
+    location: { latitude: 37.7744, longitude: -122.4220 },
+    lastSeen: '45 min ago',
+    isActive: true,
+  },
+  {
+    id: 14,
+    name: 'River',
+    location: { latitude: 37.7756, longitude: -122.4155 },
+    lastSeen: '2 hours ago',
+    isActive: false,
+  },
+  {
+    id: 15,
+    name: 'Phoenix',
+    location: { latitude: 37.7741, longitude: -122.4225 },
+    lastSeen: '20 min ago',
+    isActive: true,
+  },
+  {
+    id: 16,
+    name: 'Rowan',
+    location: { latitude: 37.7759, longitude: -122.4150 },
+    lastSeen: '5 hours ago',
+    isActive: false,
+  },
+  {
+    id: 17,
+    name: 'Skylar',
+    location: { latitude: 37.7743, longitude: -122.4230 },
+    lastSeen: '1 hour ago',
+    isActive: true,
+  },
+  {
+    id: 18,
+    name: 'Emery',
+    location: { latitude: 37.7757, longitude: -122.4145 },
+    lastSeen: '30 min ago',
+    isActive: true,
+  },
+  {
+    id: 19,
+    name: 'Finley',
+    location: { latitude: 37.7740, longitude: -122.4235 },
+    lastSeen: '6 hours ago',
+    isActive: false,
+  },
+  {
+    id: 20,
+    name: 'Reese',
+    location: { latitude: 37.7760, longitude: -122.4140 },
+    lastSeen: '25 min ago',
+    isActive: true,
+  },
+];
+
+const MOCK_GATHERINGS: Gathering[] = [
+  {
+    id: 1,
+    title: 'Study Group - CS 101',
+    location: { latitude: 37.7749, longitude: -122.4194 },
+    attendees: 4,
+    type: 'study',
+    time: '3:00 PM - 5:00 PM',
+    icon: BookOpen,
+  },
+  {
+    id: 2,
+    title: 'Coffee & Chat',
+    location: { latitude: 37.7753, longitude: -122.4186 },
+    attendees: 7,
+    type: 'social',
+    time: '2:00 PM - 4:00 PM',
+    icon: Coffee,
+  },
+  {
+    id: 3,
+    title: 'Music Jam Session',
+    location: { latitude: 37.7747, longitude: -122.4202 },
+    attendees: 3,
+    type: 'hobby',
+    time: '7:00 PM - 9:00 PM',
+    icon: Music,
+  },
+];
+
 export default function MapScreen() {
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
   const [isLocationVisible, setIsLocationVisible] = useState(true);
@@ -66,182 +242,11 @@ export default function MapScreen() {
   const bottomSheetAnim = useRef(new Animated.Value(-200)).current;
   const mapRef = useRef<MapView | null>(null);
 
-  // Mock data for friends and other users (in a real app, this would come from your backend)
-  const friends: Friend[] = [
-    {
-      id: 1,
-      name: 'Alex',
-      location: { latitude: 37.7751, longitude: -122.4180 },
-      lastSeen: '2 min ago',
-      isActive: true,
-    },
-    {
-      id: 2,
-      name: 'Maya',
-      location: { latitude: 37.7745, longitude: -122.4200 },
-      lastSeen: '1 hour ago',
-      isActive: true,
-    },
-    {
-      id: 3,
-      name: 'Jordan',
-      location: { latitude: 37.7755, longitude: -122.4190 },
-      lastSeen: '3 hours ago',
-      isActive: false,
-    },
-    {
-      id: 4,
-      name: 'Sam',
-      location: { latitude: 37.7748, longitude: -122.4175 },
-      lastSeen: '5 min ago',
-      isActive: true,
-    },
-    {
-      id: 5,
-      name: 'Riley',
-      location: { latitude: 37.7752, longitude: -122.4205 },
-      lastSeen: '30 min ago',
-      isActive: true,
-    },
-    {
-      id: 6,
-      name: 'Casey',
-      location: { latitude: 37.7746, longitude: -122.4185 },
-      lastSeen: '2 hours ago',
-      isActive: false,
-    },
-    {
-      id: 7,
-      name: 'Taylor',
-      location: { latitude: 37.7753, longitude: -122.4195 },
-      lastSeen: '15 min ago',
-      isActive: true,
-    },
-    {
-      id: 8,
-      name: 'Morgan',
-      location: { latitude: 37.7750, longitude: -122.4170 },
-      lastSeen: '1 hour ago',
-      isActive: true,
-    },
-    {
-      id: 9,
-      name: 'Avery',
-      location: { latitude: 37.7747, longitude: -122.4210 },
-      lastSeen: '4 hours ago',
-      isActive: false,
-    },
-    {
-      id: 10,
-      name: 'Quinn',
-      location: { latitude: 37.7754, longitude: -122.4165 },
-      lastSeen: '10 min ago',
-      isActive: true,
-    },
-  ];
+  const friends = useMemo(() => MOCK_FRIENDS.map(friend => ({ ...friend, isFriend: true })), []);
 
-  const otherUsers: Friend[] = [
-    {
-      id: 11,
-      name: 'Blake',
-      location: { latitude: 37.7742, longitude: -122.4215 },
-      lastSeen: '1 hour ago',
-      isActive: true,
-    },
-    {
-      id: 12,
-      name: 'Drew',
-      location: { latitude: 37.7758, longitude: -122.4160 },
-      lastSeen: '3 hours ago',
-      isActive: false,
-    },
-    {
-      id: 13,
-      name: 'Sage',
-      location: { latitude: 37.7744, longitude: -122.4220 },
-      lastSeen: '45 min ago',
-      isActive: true,
-    },
-    {
-      id: 14,
-      name: 'River',
-      location: { latitude: 37.7756, longitude: -122.4155 },
-      lastSeen: '2 hours ago',
-      isActive: false,
-    },
-    {
-      id: 15,
-      name: 'Phoenix',
-      location: { latitude: 37.7741, longitude: -122.4225 },
-      lastSeen: '20 min ago',
-      isActive: true,
-    },
-    {
-      id: 16,
-      name: 'Rowan',
-      location: { latitude: 37.7759, longitude: -122.4150 },
-      lastSeen: '5 hours ago',
-      isActive: false,
-    },
-    {
-      id: 17,
-      name: 'Skylar',
-      location: { latitude: 37.7743, longitude: -122.4230 },
-      lastSeen: '1 hour ago',
-      isActive: true,
-    },
-    {
-      id: 18,
-      name: 'Emery',
-      location: { latitude: 37.7757, longitude: -122.4145 },
-      lastSeen: '30 min ago',
-      isActive: true,
-    },
-    {
-      id: 19,
-      name: 'Finley',
-      location: { latitude: 37.7740, longitude: -122.4235 },
-      lastSeen: '6 hours ago',
-      isActive: false,
-    },
-    {
-      id: 20,
-      name: 'Reese',
-      location: { latitude: 37.7760, longitude: -122.4140 },
-      lastSeen: '25 min ago',
-      isActive: true,
-    },
-  ];
+  const otherUsers = useMemo(() => MOCK_OTHER_USERS.map(user => ({ ...user, isFriend: false })), []);
 
-  const gatherings: Gathering[] = [
-    {
-      id: 1,
-      title: 'Study Session',
-      location: { latitude: 37.7748, longitude: -122.4195 },
-      attendees: 8,
-      type: 'study',
-      time: '2:00 PM - 5:00 PM',
-      icon: BookOpen,
-    },
-    {
-      id: 2,
-      title: 'Coffee Chat',
-      location: { latitude: 37.7752, longitude: -122.4185 },
-      attendees: 4,
-      type: 'social',
-      time: '4:30 PM - 6:00 PM',
-      icon: Coffee,
-    },
-    {
-      id: 3,
-      title: 'Music Jam',
-      location: { latitude: 37.7750, longitude: -122.4205 },
-      attendees: 12,
-      type: 'hobby',
-      time: '7:00 PM - 9:00 PM',
-      icon: Music,
-    },
-  ];
+  const gatherings = useMemo(() => MOCK_GATHERINGS, []);
 
   useEffect(() => {
     // Initial location fetch and animation
@@ -1025,4 +1030,4 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: Colors.white,
   },
-});       
+});                                                                      
