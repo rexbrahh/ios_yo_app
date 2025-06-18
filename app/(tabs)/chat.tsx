@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/Colors';
@@ -6,61 +6,61 @@ import { Layout } from '@/constants/Layout';
 import { Card } from '@/components/ui/Card';
 import { MessageCircle, Search, Users, Clock, Heart } from 'lucide-react-native';
 
+const MOCK_CONVERSATIONS = [
+  {
+    id: 1,
+    name: 'Alex Chen',
+    lastMessage: 'Hey! Want to study together for the CS midterm?',
+    time: '2 min ago',
+    unread: 2,
+    online: true,
+    program: 'Computer Science',
+    mutualFriends: 0,
+  },
+  {
+    id: 2,
+    name: 'Maya Rodriguez',
+    lastMessage: 'That philosophy class was intense! What did you think?',
+    time: '1 hour ago',
+    unread: 0,
+    online: false,
+    program: 'Psychology',
+    mutualFriends: 1,
+  },
+  {
+    id: 3,
+    name: 'Jordan Kim',
+    lastMessage: 'Coffee at the student center tomorrow?',
+    time: '3 hours ago',
+    unread: 1,
+    online: true,
+    program: 'Business',
+    mutualFriends: 2,
+  },
+];
+
+const MOCK_RECOMMENDED_PEOPLE = [
+  {
+    id: 4,
+    name: 'Sam Lee',
+    program: 'Engineering',
+    mutualFriends: 3,
+    reason: '3 mutual friends',
+  },
+  {
+    id: 5,
+    name: 'Riley Taylor',
+    program: 'Art',
+    mutualFriends: 2,
+    reason: '2 mutual friends',
+  },
+];
+
 export default function ChatScreen() {
-  // Mock data for demonstration
-  const conversations = [
-    {
-      id: 1,
-      name: 'Alex Chen',
-      lastMessage: 'Hey! Want to study together for the CS midterm?',
-      time: '2 min ago',
-      unread: 2,
-      online: true,
-      program: 'Computer Science',
-      mutualFriends: 0,
-    },
-    {
-      id: 2,
-      name: 'Maya Rodriguez',
-      lastMessage: 'That philosophy class was intense! What did you think?',
-      time: '1 hour ago',
-      unread: 0,
-      online: false,
-      program: 'Psychology',
-      mutualFriends: 1,
-    },
-    {
-      id: 3,
-      name: 'Jordan Kim',
-      lastMessage: 'Coffee at the student center tomorrow?',
-      time: '3 hours ago',
-      unread: 1,
-      online: true,
-      program: 'Business',
-      mutualFriends: 2,
-    },
-  ];
+  const conversations = useMemo(() => MOCK_CONVERSATIONS, []);
+  const recommendedPeople = useMemo(() => MOCK_RECOMMENDED_PEOPLE, []);
 
-  const recommendedPeople = [
-    {
-      id: 4,
-      name: 'Sam Lee',
-      program: 'Engineering',
-      mutualFriends: 3,
-      reason: '3 mutual friends',
-    },
-    {
-      id: 5,
-      name: 'Riley Taylor',
-      program: 'Art',
-      mutualFriends: 2,
-      reason: '2 mutual friends',
-    },
-  ];
 
-  const formatTime = (time: string) => {
-    return time;
-  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -102,7 +102,7 @@ export default function ChatScreen() {
                   <View style={styles.conversationHeader}>
                     <Text style={styles.conversationName}>{conversation.name}</Text>
                     <Text style={styles.conversationTime}>
-                      {formatTime(conversation.time)}
+                      {conversation.time}
                     </Text>
                   </View>
                   <Text style={styles.conversationProgram}>{conversation.program}</Text>
@@ -407,4 +407,4 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     textAlign: 'center',
   },
-}); 
+});      
